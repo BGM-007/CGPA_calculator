@@ -43,8 +43,29 @@
             .big-total{margin-top:8px;font-weight:700;font-size:18px}
             .actions-row{display:flex;justify-content:space-between;align-items:center}
             .mt12{margin-top:12px}
-            .hidden{display:none}
-            @media (max-width:900px){.grid{grid-template-columns:1fr}}
+                    .hidden{display:none}
+                    /* table wrapper to allow horizontal scrolling on small screens */
+                    .table-wrap{overflow:auto}
+                    table{min-width:720px}
+
+                    /* responsive adjustments */
+                    @media (max-width:900px){
+                        .grid{grid-template-columns:1fr}
+                        .controls{flex-wrap:wrap}
+                        .controls .btn{flex:1 1 auto;width:48%;min-width:140px}
+                        .controls .small-btn{flex:1 1 auto;width:48%;min-width:120px}
+                        .semester{padding:10px}
+                        .badge{padding:6px 8px;font-size:14px}
+                        .credits-col, .grade-col, .gp-col, .actions-col{width:auto}
+                        table{min-width:600px}
+                    }
+
+                    /* phone-friendly layout */
+                    @media (max-width:480px){
+                        .controls .btn, .controls .small-btn{width:100%}
+                        .badge{font-size:13px;padding:6px 8px}
+                        table{min-width:520px}
+                    }
         </style>
     </head>
     <body>
@@ -267,8 +288,11 @@
                         tbody.appendChild(tr);
                     });
 
-                    table.appendChild(tbody);
-                    semDiv.appendChild(table);
+                      table.appendChild(tbody);
+                      const wrap = document.createElement('div');
+                      wrap.className = 'table-wrap';
+                      wrap.appendChild(table);
+                      semDiv.appendChild(wrap);
 
                     // footer: semester GPA and credits
                     const footer = document.createElement('div'); footer.style.display='flex'; footer.style.justifyContent='space-between'; footer.style.marginTop='8px';
