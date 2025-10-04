@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CGPA Calculator</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root{--bg:#f8fafc;--card:#fff;--muted:#64748b;--accent:#0ea5e9}
+            *{box-sizing:border-box}
+            body{font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#eef2ff 0%,#f8fafc 100%);margin:0;color:#0f172a}
+            .app{max-width:1100px;margin:28px auto;padding:24px}
+            .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+            h1{margin:0;font-size:22px}
+            .controls{display:flex;gap:8px;align-items:center}
+            .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+            .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(14,165,233,0.16)}
+            .card{background:var(--card);border-radius:12px;padding:18px;margin-top:18px;box-shadow:0 8px 30px rgba(2,6,23,0.06)}
+            .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+            .sem-list{display:flex;flex-direction:column;gap:12px}
+            .semester{padding:12px;border-radius:10px;border:1px solid #e6eef8;background:linear-gradient(180deg,rgba(255,255,255,0.8),transparent)}
+            table{width:100%;border-collapse:collapse}
+            th,td{padding:8px;text-align:left;border-bottom:1px dashed #eef5ff}
+            th{font-weight:600;color:var(--muted);font-size:13px}
+            input[type=number], input[type=text], select{padding:6px;border-radius:6px;border:1px solid #e6eef8}
+            .small{font-size:13px;color:var(--muted)}
+            .badges{display:flex;gap:12px;align-items:center}
+            .badge{background:#eef2ff;color:#0c4a6e;padding:8px 12px;border-radius:10px;font-weight:700}
+            .muted{color:var(--muted)}
+            .subject-row{display:flex;gap:8px;align-items:center}
+            .subject-row > *{flex:1}
+            .credits-col{width:90px}
+            .grade-col{width:120px}
+            .gp-col{width:70px;text-align:center}
+            .actions-col{width:80px;text-align:right}
+            .footer-note{margin-top:12px;color:var(--muted);font-size:13px}
+            .small-btn{background:transparent;border:1px solid #e6eef8;padding:6px 8px;border-radius:8px;cursor:pointer}
+            .center{display:flex;align-items:center;justify-content:center}
+            .aside-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+            .muted-list{margin-top:6px}
+            .grid-gap{display:grid;gap:10px}
+            .padded-card{padding:12px}
+            .big-total{margin-top:8px;font-weight:700;font-size:18px}
+            .actions-row{display:flex;justify-content:space-between;align-items:center}
+            .mt12{margin-top:12px}
+            .hidden{display:none}
+            @media (max-width:900px){.grid{grid-template-columns:1fr}}
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <div class="top">
+                <h1>CGPA Calculator</h1>
+                <div class="controls">
+                    <button id="addSemester" class="btn">+ Add Semester</button>
+                    <button id="resetAll" class="btn ghost">Reset</button>
+                    <button id="exportJSON" class="btn ghost">Export JSON</button>
+                    <label for="importFile" class="small-btn">Import</label>
+                    <input id="importFile" type="file" accept="application/json" class="hidden">
+                </div>
+            </div>
+
+            <div class="card grid">
+                <div>
+                    <div class="sem-list" id="semesters"></div>
+                </div>
+
+                <aside>
+                    <div class="aside-header">
+                        <div>
+                            <div class="small">Grade mapping (Grade → GP)</div>
+                            <ul class="small muted muted-list">
+                                <li>A+ → 10</li>
+                                <li>A → 9</li>
+                                <li>B+ → 8</li>
+                                <li>B → 7</li>
+                                <li>C+ → 6</li>
+                                <li>C → 5</li>
+                                <li>D → 4</li>
+                                <li>F → 0</li>
+                                <li>FR → 0 (excluded from GPA/CGPA)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="grid-gap">
+                        <div class="badges">
+                            <div class="badge" id="cgpaBadge">CGPA: -</div>
+                            <div class="badge" id="percentBadge">Percentage: -</div>
+                        </div>
+
+                        <div class="card padded-card">
+                            <div class="small">Totals</div>
+                            <div class="big-total" id="totalCredits">0 credits counted</div>
+                            <div class="footer-note">FR subjects are excluded from GPA/CGPA calculation. F has GP = 0 and is included.</div>
+                        </div>
+
+                        <div class="card padded-card">
+                            <div class="actions-row">
+                                <div class="small">Actions</div>
+                                <div>
+                                    <button id="clearStorage" class="small-btn">Clear saved</button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </aside>
+            </div>
+
+            <div class="footer-note card mt12">Vanilla JS CGPA calculator — grade input, FR support, per-semester GPA, CGPA, localStorage persistence, import/export JSON.</div>
+        </div>
+
+        <script>
+            // Data model and persistence
+            const STORAGE_KEY = 'cgpa_v1_sems';
+
+            let sems = [];
+            let nextSemId = 1;
+            let nextSubId = 1;
+
+            // helpers
+            function gradeToGP(grade, isFR){
+                if(isFR || grade === 'FR') return {gp:0, excluded:true, grade:'FR'};
+                if(!grade) return {gp:null, excluded:false, grade:'-'};
+                const g = String(grade).trim().toUpperCase();
+                if(g === 'A+' ) return {gp:10, excluded:false, grade:'A+'};
+                if(g === 'A') return {gp:9, excluded:false, grade:'A'};
+                if(g === 'B+' ) return {gp:8, excluded:false, grade:'B+'};
+                if(g === 'B') return {gp:7, excluded:false, grade:'B'};
+                if(g === 'C+') return {gp:6, excluded:false, grade:'C+'};
+                if(g === 'C') return {gp:5, excluded:false, grade:'C'};
+                if(g === 'D') return {gp:4, excluded:false, grade:'D'};
+                if(g === 'F') return {gp:0, excluded:false, grade:'F'};
+                return {gp:null, excluded:false, grade:'-'};
+            }
+
+            function marksToGrade(marks){
+                if(marks === null || marks === undefined || marks === '') return null;
+                marks = Number(marks);
+                if(Number.isNaN(marks)) return null;
+                if(marks >= 91) return 'A+';
+                if(marks >= 81) return 'A';
+                if(marks >= 71) return 'B+';
+                if(marks >= 61) return 'B';
+                if(marks >= 51) return 'C+';
+                if(marks >= 46) return 'C';
+                if(marks >= 40) return 'D';
+                return 'F';
+            }
+
+            function save(){
+                try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(sems)); }catch(e){ console.warn('save failed', e); }
+            }
+
+            function load(){
+                try{
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if(raw){
+                        const parsed = JSON.parse(raw);
+                        if(Array.isArray(parsed) && parsed.length){
+                            sems = parsed;
+                            // recalc next ids
+                            nextSemId = sems.reduce((m,s)=> Math.max(m,s.id),0) + 1;
+                            nextSubId = sems.flatMap(s=>s.subjects||[]).reduce((m,sub)=> Math.max(m,sub.id||0),0) + 1;
+                            // migrate marks->grade if grade missing
+                            sems.forEach(sem=> sem.subjects.forEach(sb=>{
+                                if((!sb.grade || sb.grade==='') && sb.marks){ sb.grade = marksToGrade(sb.marks) || '' ; }
+                            }));
+                            return;
+                        }
+                    }
+                }catch(e){ console.warn('load failed', e); }
+                // default
+                sems = [{id:1, subjects:[newSubject(), newSubject(), newSubject()]}];
+                nextSemId = 2; nextSubId = 4;
+            }
+
+            function newSubject(){
+                return {id: nextSubId++, name:'', credits:3, grade:'', marks:'', isFR:false};
+            }
+
+            function newSemester(){
+                return {id: nextSemId++, subjects:[newSubject(), newSubject()]};
+            }
+
+            // rendering
+            const semestersEl = document.getElementById('semesters');
+            const addSemesterBtn = document.getElementById('addSemester');
+            const resetAllBtn = document.getElementById('resetAll');
+            const cgpaBadge = document.getElementById('cgpaBadge');
+            const percentBadge = document.getElementById('percentBadge');
+            const totalCreditsEl = document.getElementById('totalCredits');
+            const exportJSONBtn = document.getElementById('exportJSON');
+            const importFileInput = document.getElementById('importFile');
+            const clearStorageBtn = document.getElementById('clearStorage');
+
+            function render(){
+                semestersEl.innerHTML = '';
+                sems.forEach(sem => {
+                    const semDiv = document.createElement('div');
+                    semDiv.className = 'semester';
+
+                    const header = document.createElement('div');
+                    header.style.display='flex'; header.style.justifyContent='space-between'; header.style.alignItems='center'; header.style.marginBottom='8px';
+                    header.innerHTML = `<strong>Semester ${sem.id}</strong>`;
+
+                    const headerRight = document.createElement('div'); headerRight.style.display='flex'; headerRight.style.gap='8px';
+                    const addSubBtn = document.createElement('button'); addSubBtn.className='small-btn'; addSubBtn.textContent='+ Subject';
+                    addSubBtn.addEventListener('click', ()=>{ sem.subjects.push(newSubject()); save(); render(); });
+                    const removeSemBtn = document.createElement('button'); removeSemBtn.className='small-btn'; removeSemBtn.textContent='Remove';
+                    removeSemBtn.addEventListener('click', ()=>{ if(confirm('Remove semester?')){ sems = sems.filter(s=>s.id!==sem.id); save(); render(); }});
+                    headerRight.appendChild(addSubBtn); headerRight.appendChild(removeSemBtn);
+                    header.appendChild(headerRight);
+
+                    semDiv.appendChild(header);
+
+                    const table = document.createElement('table');
+                    table.innerHTML = `<thead><tr><th>Subject</th><th class='credits-col'>Credits</th><th class='grade-col'>Grade</th><th>FR?</th><th class='gp-col'>GP</th><th class='actions-col'></th></tr></thead>`;
+                    const tbody = document.createElement('tbody');
+
+                    sem.subjects.forEach(sb => {
+                        const tr = document.createElement('tr');
+
+                        // subject name
+                        const tdName = document.createElement('td');
+                        const nameInput = document.createElement('input'); nameInput.type='text'; nameInput.value=sb.name||''; nameInput.placeholder='Subject name';
+                        nameInput.addEventListener('input', e=>{ sb.name = e.target.value; save(); });
+                        tdName.appendChild(nameInput);
+
+                        // credits
+                        const tdCredits = document.createElement('td'); tdCredits.className='credits-col';
+                        const creditsInput = document.createElement('input'); creditsInput.type='number'; creditsInput.step='0.5'; creditsInput.min='0'; creditsInput.value=sb.credits;
+                        creditsInput.addEventListener('input', e=>{ sb.credits = Number(e.target.value); save(); render(); });
+                        tdCredits.appendChild(creditsInput);
+
+                        // grade select
+                        const tdGrade = document.createElement('td'); tdGrade.className='grade-col';
+                        const gradeSelect = document.createElement('select');
+                        ['', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F', 'FR'].forEach(opt=>{
+                            const o = document.createElement('option'); o.value = opt; o.textContent = opt || 'Select'; gradeSelect.appendChild(o);
+                        });
+                        gradeSelect.value = sb.grade || '';
+                        gradeSelect.addEventListener('change', e=>{ sb.grade = e.target.value; if(sb.grade==='FR'){ sb.isFR = true; } save(); render(); });
+                        tdGrade.appendChild(gradeSelect);
+
+                        // FR checkbox (keep for clarity)
+                        const tdFR = document.createElement('td'); tdFR.className='center';
+                        const frCheckbox = document.createElement('input'); frCheckbox.type='checkbox'; frCheckbox.checked = !!sb.isFR;
+                        frCheckbox.addEventListener('change', e=>{ sb.isFR = e.target.checked; if(sb.isFR){ sb.grade = 'FR'; } else if(sb.grade==='FR'){ sb.grade = ''; } save(); render(); });
+                        tdFR.appendChild(frCheckbox);
+
+                        // GP display
+                        const tdGP = document.createElement('td'); tdGP.className='center gp-col';
+                        // determine gp: primary grade, fallback marks
+                        const gradeVal = (sb.grade && sb.grade!=='') ? sb.grade : (sb.marks ? marksToGrade(sb.marks) : null);
+                        const {gp, excluded} = gradeToGP(gradeVal, sb.isFR);
+                        tdGP.textContent = gp === null ? '-' : (gp + (excluded ? ' (FR)' : ''));
+
+                        // actions
+                        const tdActions = document.createElement('td'); tdActions.className='actions-col';
+                        const removeBtn = document.createElement('button'); removeBtn.className='small-btn'; removeBtn.textContent='Remove';
+                        removeBtn.addEventListener('click', ()=>{ if(confirm('Remove subject?')){ sem.subjects = sem.subjects.filter(s=>s.id!==sb.id); save(); render(); }});
+                        tdActions.appendChild(removeBtn);
+
+                        tr.appendChild(tdName); tr.appendChild(tdCredits); tr.appendChild(tdGrade); tr.appendChild(tdFR); tr.appendChild(tdGP); tr.appendChild(tdActions);
+                        tbody.appendChild(tr);
+                    });
+
+                    table.appendChild(tbody);
+                    semDiv.appendChild(table);
+
+                    // footer: semester GPA and credits
+                    const footer = document.createElement('div'); footer.style.display='flex'; footer.style.justifyContent='space-between'; footer.style.marginTop='8px';
+                    const semGPA = computeSemesterGPA(sem);
+                    footer.innerHTML = `<div class='small'>Semester GPA: <strong>${semGPA!==null? semGPA.toFixed(3):'-'}</strong></div><div class='small'>Credits counted: <strong>${computeSemesterCredits(sem)}</strong></div>`;
+                    semDiv.appendChild(footer);
+
+                    semestersEl.appendChild(semDiv);
+                });
+
+                // update totals
+                const totals = computeTotals();
+                if(totals.cgpa !== null){
+                    cgpaBadge.textContent = 'CGPA: ' + totals.cgpa.toFixed(3);
+                    percentBadge.textContent = 'Percentage: ' + totals.percent.toFixed(2) + '%';
+                } else { cgpaBadge.textContent = 'CGPA: -'; percentBadge.textContent = 'Percentage: -'; }
+                totalCreditsEl.textContent = totals.totalC + ' credits counted';
+            }
+
+            function computeSemesterGPA(sem){
+                let sumC=0, sumCg=0;
+                sem.subjects.forEach(sb=>{
+                    const credits = Number(sb.credits);
+                    const gradeVal = (sb.grade && sb.grade!=='') ? sb.grade : (sb.marks ? marksToGrade(sb.marks) : null);
+                    const {gp, excluded} = gradeToGP(gradeVal, sb.isFR);
+                    if(excluded) return;
+                    if(!isFinite(credits) || credits<=0) return;
+                    if(gp===null) return;
+                    sumC += credits; sumCg += credits*gp;
+                });
+                return sumC>0? sumCg/sumC : null;
+            }
+
+            function computeSemesterCredits(sem){
+                return sem.subjects.reduce((acc,sb)=>{
+                    const credits = Number(sb.credits);
+                    const gradeVal = (sb.grade && sb.grade!=='') ? sb.grade : (sb.marks ? marksToGrade(sb.marks) : null);
+                    const {gp, excluded} = gradeToGP(gradeVal, sb.isFR);
+                    if(excluded) return acc;
+                    if(!isFinite(credits) || credits<=0) return acc;
+                    if(gp===null) return acc;
+                    return acc+credits;
+                },0);
+            }
+
+            function computeTotals(){
+                let totalC=0, totalCg=0;
+                sems.forEach(sem=>{
+                    sem.subjects.forEach(sb=>{
+                        const credits = Number(sb.credits);
+                        const gradeVal = (sb.grade && sb.grade!=='') ? sb.grade : (sb.marks ? marksToGrade(sb.marks) : null);
+                        const {gp, excluded} = gradeToGP(gradeVal, sb.isFR);
+                        if(excluded) return;
+                        if(!isFinite(credits) || credits<=0) return;
+                        if(gp===null) return;
+                        totalC += credits; totalCg += credits*gp;
+                    });
+                });
+                const cgpa = totalC>0? totalCg/totalC : null;
+                const percent = cgpa!==null? (cgpa - 0.5)*10 : null;
+                return {totalC, totalCg, cgpa, percent};
+            }
+
+            // actions
+            addSemesterBtn.addEventListener('click', ()=>{ sems.push(newSemester()); save(); render(); });
+            resetAllBtn.addEventListener('click', ()=>{ if(!confirm('Clear all semesters and reset?')) return; sems = [newSemester()]; save(); render(); });
+            exportJSONBtn.addEventListener('click', ()=>{
+                const dataStr = JSON.stringify(sems, null, 2);
+                const blob = new Blob([dataStr], {type:'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'cgpa_export.json'; a.click(); URL.revokeObjectURL(url);
+            });
+
+            importFileInput.addEventListener('change', e=>{
+                const file = e.target.files[0]; if(!file) return;
+                const reader = new FileReader();
+                reader.onload = evt=>{
+                    try{
+                        const parsed = JSON.parse(evt.target.result);
+                        if(Array.isArray(parsed)){
+                            // basic validation
+                            sems = parsed.map(s=>({ id: s.id||nextSemId++, subjects: (s.subjects||[]).map(sb=>({ id: sb.id||nextSubId++, name: sb.name||'', credits: sb.credits||3, grade: sb.grade|| (sb.marks? marksToGrade(sb.marks): ''), marks: sb.marks||'', isFR: !!sb.isFR })) }));
+                            save(); render();
+                        } else alert('Invalid file format');
+                    }catch(err){ alert('Import failed: ' + err.message); }
+                };
+                reader.readAsText(file);
+                // reset
+                e.target.value = '';
+            });
+
+            clearStorageBtn.addEventListener('click', ()=>{ if(!confirm('Clear saved data from localStorage?')) return; localStorage.removeItem(STORAGE_KEY); alert('Cleared'); });
+
+            // initial load
+            load(); render();
+        </script>
+    </body>
+</html>
