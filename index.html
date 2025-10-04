@@ -66,6 +66,19 @@
                         .badge{font-size:13px;padding:6px 8px}
                         table{min-width:520px}
                     }
+                            /* Mobile: convert table rows into stacked cards for readability */
+                            @media (max-width:600px){
+                                table thead{display:none}
+                                table, tbody, tr{display:block;width:100%}
+                                td{display:flex;flex-direction:row;justify-content:space-between;padding:10px 8px;border-bottom:1px solid #f1f5f9}
+                                td[data-label]{align-items:center}
+                                td[data-label]::before{content:attr(data-label);font-weight:600;color:var(--muted);margin-right:8px;width:34%;flex:0 0 34%}
+                                td input, td select, td .small-btn{width:100%;flex:1}
+                                .credits-col, .grade-col, .gp-col, .actions-col{width:auto}
+                                .semester{padding:14px}
+                                .small{font-size:12px}
+                                .badge{font-size:13px}
+                            }
         </style>
     </head>
     <body>
@@ -244,19 +257,19 @@
                         const tr = document.createElement('tr');
 
                         // subject name
-                        const tdName = document.createElement('td');
+                        const tdName = document.createElement('td'); tdName.setAttribute('data-label','Subject');
                         const nameInput = document.createElement('input'); nameInput.type='text'; nameInput.value=sb.name||''; nameInput.placeholder='Subject name';
                         nameInput.addEventListener('input', e=>{ sb.name = e.target.value; save(); });
                         tdName.appendChild(nameInput);
 
                         // credits
-                        const tdCredits = document.createElement('td'); tdCredits.className='credits-col';
+                        const tdCredits = document.createElement('td'); tdCredits.className='credits-col'; tdCredits.setAttribute('data-label','Credits');
                         const creditsInput = document.createElement('input'); creditsInput.type='number'; creditsInput.step='0.5'; creditsInput.min='0'; creditsInput.value=sb.credits;
                         creditsInput.addEventListener('input', e=>{ sb.credits = Number(e.target.value); save(); render(); });
                         tdCredits.appendChild(creditsInput);
 
                         // grade select
-                        const tdGrade = document.createElement('td'); tdGrade.className='grade-col';
+                        const tdGrade = document.createElement('td'); tdGrade.className='grade-col'; tdGrade.setAttribute('data-label','Grade');
                         const gradeSelect = document.createElement('select');
                         ['', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F', 'FR'].forEach(opt=>{
                             const o = document.createElement('option'); o.value = opt; o.textContent = opt || 'Select'; gradeSelect.appendChild(o);
@@ -266,20 +279,20 @@
                         tdGrade.appendChild(gradeSelect);
 
                         // FR checkbox (keep for clarity)
-                        const tdFR = document.createElement('td'); tdFR.className='center';
+                        const tdFR = document.createElement('td'); tdFR.className='center'; tdFR.setAttribute('data-label','FR?');
                         const frCheckbox = document.createElement('input'); frCheckbox.type='checkbox'; frCheckbox.checked = !!sb.isFR;
                         frCheckbox.addEventListener('change', e=>{ sb.isFR = e.target.checked; if(sb.isFR){ sb.grade = 'FR'; } else if(sb.grade==='FR'){ sb.grade = ''; } save(); render(); });
                         tdFR.appendChild(frCheckbox);
 
                         // GP display
-                        const tdGP = document.createElement('td'); tdGP.className='center gp-col';
+                        const tdGP = document.createElement('td'); tdGP.className='center gp-col'; tdGP.setAttribute('data-label','GP');
                         // determine gp: primary grade, fallback marks
                         const gradeVal = (sb.grade && sb.grade!=='') ? sb.grade : (sb.marks ? marksToGrade(sb.marks) : null);
                         const {gp, excluded} = gradeToGP(gradeVal, sb.isFR);
                         tdGP.textContent = gp === null ? '-' : (gp + (excluded ? ' (FR)' : ''));
 
                         // actions
-                        const tdActions = document.createElement('td'); tdActions.className='actions-col';
+                        const tdActions = document.createElement('td'); tdActions.className='actions-col'; tdActions.setAttribute('data-label','Actions');
                         const removeBtn = document.createElement('button'); removeBtn.className='small-btn'; removeBtn.textContent='Remove';
                         removeBtn.addEventListener('click', ()=>{ if(confirm('Remove subject?')){ sem.subjects = sem.subjects.filter(s=>s.id!==sb.id); save(); render(); }});
                         tdActions.appendChild(removeBtn);
